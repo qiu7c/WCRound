@@ -1,0 +1,136 @@
+#import "Sources/API/Internal.h"
+
+UIImage *WCRoundSettingsBackImage(void) {
+    UIImageSymbolConfiguration *configuration = [UIImageSymbolConfiguration configurationWithPointSize:20 weight:UIImageSymbolWeightSemibold];
+    return [UIImage systemImageNamed:@"chevron.left" withConfiguration:configuration];
+}
+
+void WCRoundSettingsConfigureNavigation(UIViewController *controller) {
+    UINavigationItem *item = controller.navigationItem;
+    item.backButtonDisplayMode = UINavigationItemBackButtonDisplayModeMinimal;
+    item.largeTitleDisplayMode = UINavigationItemLargeTitleDisplayModeNever;
+    UINavigationBar *bar = controller.navigationController.navigationBar;
+    // Scope appearances to our item; the host WeChat navigation bar is shared.
+    NSArray *sources = @[
+        bar.standardAppearance ?: [UINavigationBarAppearance new],
+        bar.scrollEdgeAppearance ?: bar.standardAppearance ?: [UINavigationBarAppearance new],
+        bar.compactAppearance ?: bar.standardAppearance ?: [UINavigationBarAppearance new]
+    ];
+    NSMutableArray *appearances = [NSMutableArray array];
+    for (UINavigationBarAppearance *source in sources) {
+        UINavigationBarAppearance *appearance = [source copy];
+        NSMutableDictionary *titleAttributes = [appearance.titleTextAttributes mutableCopy] ?: [NSMutableDictionary dictionary];
+        titleAttributes[NSFontAttributeName] = [UIFont systemFontOfSize:17 * WCRoundSettingsScaleFactor() weight:UIFontWeightSemibold];
+        appearance.titleTextAttributes = titleAttributes;
+        UIImage *image = WCRoundSettingsBackImage();
+        [appearance setBackIndicatorImage:image transitionMaskImage:image];
+        // Also suppress a host-owned previous item's title on the home page.
+        for (UIBarButtonItemStateAppearance *state in @[
+            appearance.backButtonAppearance.normal, appearance.backButtonAppearance.highlighted,
+            appearance.backButtonAppearance.disabled, appearance.backButtonAppearance.focused
+        ]) state.titlePositionAdjustment = UIOffsetMake(-1000, 0);
+        [appearances addObject:appearance];
+    }
+    item.standardAppearance = appearances[0];
+    item.scrollEdgeAppearance = appearances[1];
+    item.compactAppearance = appearances[2];
+    if (@available(iOS 15.0, *)) {
+        item.compactScrollEdgeAppearance = appearances[2];
+    }
+}
+
+CGFloat WCRoundSettingsScaleFactor(void) { return 1; }
+
+void WCRoundSettingsPostChange(NSString *key) {
+    [NSNotificationCenter.defaultCenter postNotificationName:WCRoundDidChangeNotification object:key];
+}
+
+// All sections on a settings page form one continuous inset card.
+@interface WCRoundLocalSettingsCardCell : UITableViewCell
+@property (nonatomic, strong) UIView *surface;
+@property (nonatomic, strong) UIView *pressedSurface;
+@property (nonatomic) CACornerMask cardCorners;
+@property (nonatomic, strong) UIImageView *disclosure;
+@property (nonatomic) UITableViewCellStyle cardStyle;
+@end
+@implementation WCRoundLocalSettingsCardCell
+- (instancetype)initWithStyle:(UITableViewCellStyle)style reuseIdentifier:(NSString *)identifier {
+    if ((self=[super initWithStyle:style reuseIdentifier:identifier])) {
+        self.cardStyle=style;
+        self.contentView.clipsToBounds=YES;
+        self.textLabel.numberOfLines=1;
+        self.textLabel.lineBreakMode=NSLineBreakByTruncatingTail;
+        self.detailTextLabel.numberOfLines=1;
+        self.detailTextLabel.lineBreakMode=NSLineBreakByTruncatingTail;
+        self.backgroundColor=UIColor.clearColor;self.backgroundView=[UIView new];
+        self.surface=[UIView new];self.surface.backgroundColor=UIColor.secondarySystemGroupedBackgroundColor;
+        self.surface.layer.cornerCurve=kCACornerCurveContinuous;self.surface.clipsToBounds=YES;
+        [self.backgroundView addSubview:self.surface];
+        self.selectedBackgroundView=[UIView new];self.selectedBackgroundView.backgroundColor=UIColor.clearColor;
+        self.pressedSurface=[UIView new];self.pressedSurface.backgroundColor=UIColor.tertiarySystemFillColor;
+        self.pressedSurface.layer.cornerCurve=kCACornerCurveContinuous;self.pressedSurface.clipsToBounds=YES;
+        [self.selectedBackgroundView addSubview:self.pressedSurface];
+    }
+    return self;
+}
+- (void)setAccessoryType:(UITableViewCellAccessoryType)type {
+    [super setAccessoryType:type];
+    if (type==UITableViewCellAccessoryDisclosureIndicator) {
+        if (!self.disclosure) {
+            self.disclosure=[[UIImageView alloc] initWithImage:[UIImage systemImageNamed:@"chevron.right"
+                withConfiguration:[UIImageSymbolConfiguration configurationWithPointSize:12 weight:UIImageSymbolWeightRegular]]];
+            self.disclosure.tintColor=UIColor.tertiaryLabelColor;
+            self.disclosure.contentMode=UIViewContentModeScaleAspectFit;
+            self.disclosure.frame=CGRectMake(0,0,12,16);
+        }
+        // A custom accessory uses the same absolute inset as switches/fold arrows.
+        self.accessoryView=self.disclosure;
+    } else if (self.accessoryView==self.disclosure) self.accessoryView=nil;
+}
+- (void)layoutSubviews {
+    [super layoutSubviews];
+    CGFloat inset=16;
+    for (UIView *surface in @[self.surface,self.pressedSurface]) {
+        surface.frame=CGRectInset(self.bounds,inset,0);
+        surface.layer.cornerRadius=self.cardCorners?16:0;
+        surface.layer.maskedCorners=self.cardCorners;
+    }
+    CGFloat trailing=inset;
+    if (self.accessoryView) {
+        CGRect accessory=self.accessoryView.frame;
+        accessory.origin.x=CGRectGetWidth(self.bounds)-2*inset-CGRectGetWidth(accessory);
+        accessory.origin.y=(CGRectGetHeight(self.bounds)-CGRectGetHeight(accessory))/2;
+        self.accessoryView.frame=accessory;
+        trailing=CGRectGetWidth(accessory)+3*inset;
+    } else if (self.accessoryType!=UITableViewCellAccessoryNone) trailing=3*inset;
+    self.contentView.frame=CGRectMake(inset,0,MAX(0,CGRectGetWidth(self.bounds)-inset-trailing),CGRectGetHeight(self.bounds));
+    // UIKit laid out its labels before the card's content width was inset.
+    // Refit native labels to that final width, reserving a separate value area.
+    CGFloat right=MAX(0,CGRectGetWidth(self.contentView.bounds)-(self.accessoryView?0:inset));
+    CGRect title=self.textLabel.frame;
+    CGFloat titleRight=right;
+    if (self.cardStyle==UITableViewCellStyleValue1 && self.detailTextLabel.text.length) {
+        CGRect value=self.detailTextLabel.frame;
+        CGFloat available=MAX(0,right-CGRectGetMinX(title));
+        value.size.width=MIN([self.detailTextLabel sizeThatFits:CGSizeMake(CGFLOAT_MAX,value.size.height)].width,available*0.55);
+        value.origin.x=right-value.size.width;
+        self.detailTextLabel.frame=value;
+        titleRight=CGRectGetMinX(value)-8;
+    } else if (self.cardStyle==UITableViewCellStyleSubtitle) {
+        CGRect subtitle=self.detailTextLabel.frame;
+        subtitle.size.width=MIN(subtitle.size.width,MAX(0,right-subtitle.origin.x));
+        self.detailTextLabel.frame=subtitle;
+    }
+    title.size.width=MIN(title.size.width,MAX(0,titleRight-title.origin.x));
+    self.textLabel.frame=title;
+}
+@end
+UITableViewCell *WCRoundSettingsCardCell(UITableView *table, NSString *identifier, UITableViewCellStyle style, NSIndexPath *path) {
+    WCRoundLocalSettingsCardCell *cell=identifier.length?[table dequeueReusableCellWithIdentifier:identifier]:nil;
+    if (!cell) cell=[[WCRoundLocalSettingsCardCell alloc] initWithStyle:style reuseIdentifier:identifier.length?identifier:nil];
+    BOOL first=path.section==0 && path.row==0;
+    BOOL last=path.section==table.numberOfSections-1 && path.row==[table numberOfRowsInSection:path.section]-1;
+    cell.cardCorners=(first?(kCALayerMinXMinYCorner|kCALayerMaxXMinYCorner):0)
+        |(last?(kCALayerMinXMaxYCorner|kCALayerMaxXMaxYCorner):0);
+    [cell setNeedsLayout];return cell;
+}

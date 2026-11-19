@@ -1,0 +1,10 @@
+Package: com.qiu7c.wcround
+Name: WCRound
+Version: 1.0.0
+Architecture: iphoneos-arm
+Depends: mobilesubstrate
+Description: Customize WeChat corners for the homepage, avatars, chat input and media.
+Maintainer: cc
+Author: cc
+Homepage: https://github.com/qiu7c/WCRound
+Section: Tweaks

@@ -1,0 +1,139 @@
+name: Build and release WCRound
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PROJECT: WCRound
+
+jobs:
+  binary:
+    name: Build universal dylib
+    runs-on: macos-15
+    env:
+      THEOS: ${{ github.workspace }}/theos
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Set up Theos
+        run: |
+          brew install ldid
+          git clone --recursive --depth 1 https://github.com/theos/theos.git "$THEOS"
+          mkdir -p "$THEOS/sdks"
+          sdk_path=$(xcrun --sdk iphoneos --show-sdk-path)
+          sdk_version=$(xcrun --sdk iphoneos --show-sdk-version)
+          ln -s "$sdk_path" "$THEOS/sdks/iPhoneOS${sdk_version}.sdk"
+      - name: Build and sign the shared binary
+        run: |
+          make clean stage FINALPACKAGE=1
+          dylib=$(find .theos/_ -type f -name "${PROJECT}.dylib" -print)
+          test -f "$dylib"
+          install_name_tool -id "@rpath/${PROJECT}.dylib" "$dylib"
+          ldid -S "$dylib"
+          lipo -verify_arch arm64 arm64e "$dylib"
+          mkdir -p build
+          cp "$dylib" "build/${PROJECT}.dylib"
+          python3 .github/scripts/verify_release.py build --binary-only
+      - uses: actions/upload-artifact@v6
+        with:
+          name: WCRound-binary
+          path: build/*.dylib
+          if-no-files-found: error
+
+  package:
+    name: Package (${{ matrix.scheme }})
+    needs: binary
+    runs-on: macos-15
+    env:
+      THEOS: ${{ github.workspace }}/theos
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - scheme: rootful
+            theos_repo: theos/theos
+            deb_arch: iphoneos-arm
+            make_args: ""
+          - scheme: rootless
+            theos_repo: theos/theos
+            deb_arch: iphoneos-arm64
+            make_args: "THEOS_PACKAGE_SCHEME=rootless"
+          - scheme: roothide
+            theos_repo: roothide/theos
+            deb_arch: iphoneos-arm64e
+            make_args: "THEOS_PACKAGE_SCHEME=roothide"
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v6
+        with:
+          name: WCRound-binary
+          path: build
+      - name: Set up packaging tools
+        env:
+          THEOS_REPOSITORY: ${{ matrix.theos_repo }}
+        run: git clone --recursive --depth 1 "https://github.com/${THEOS_REPOSITORY}.git" "$THEOS"
+      - name: Package the same dylib
+        env:
+          DEB_ARCH: ${{ matrix.deb_arch }}
+        run: |
+          make clean package FINALPACKAGE=1 PREBUILT_DYLIB="$GITHUB_WORKSPACE/build/${PROJECT}.dylib" ${{ matrix.make_args }}
+          grep -Fx "Architecture: ${DEB_ARCH}" .theos/_/DEBIAN/control
+      - uses: actions/upload-artifact@v6
+        with:
+          name: WCRound-${{ matrix.scheme }}
+          path: packages/*.deb
+          if-no-files-found: error
+
+  release:
+    name: Verify and publish Release
+    needs: [binary, package]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v6
+        with:
+          pattern: WCRound-*
+          path: release
+          merge-multiple: true
+      - name: Verify all four assets
+        run: python3 .github/scripts/verify_release.py release
+      - name: Publish version from control
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(sed -n 's/^Version: //p' control)
+          tag="v${version}"
+          cat > release-notes.txt <<'NOTES'
+          功能、设置与配置导入导出见项目说明。
+
+          - iphoneos-arm.deb 适用于有根环境。
+          - iphoneos-arm64.deb 适用于普通无根环境。
+          - iphoneos-arm64e.deb 适用于 RootHide。
+          - dylib 包含 arm64 和 arm64e 切片，与三个安装包内的二进制一致。
+
+          作者 cc
+          NOTES
+          if gh release view "$tag" >/dev/null 2>&1; then
+            tag_sha=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" --jq .object.sha)
+            test "$tag_sha" = "$GITHUB_SHA"
+          else
+            gh release create "$tag" --draft --target "$GITHUB_SHA" --title "$PROJECT $version" --notes-file release-notes.txt
+          fi
+          gh release upload "$tag" release/*.deb release/*.dylib --clobber
+          gh release edit "$tag" --draft=false --latest --notes-file release-notes.txt

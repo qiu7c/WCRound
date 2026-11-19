@@ -1,0 +1,25 @@
+#import <Foundation/Foundation.h>
+
+FOUNDATION_EXPORT NSString *const WCRoundHomePageCornerEnabledKey;
+FOUNDATION_EXPORT NSString *const WCRoundHomePageCornerRadiusKey;
+FOUNDATION_EXPORT NSString *const WCRoundHomePageCornerInsetKey;
+FOUNDATION_EXPORT NSString *const WCRoundHomePageCornerGapKey;
+FOUNDATION_EXPORT NSString *const WCRoundHomePageCornerMergePinnedKey;
+FOUNDATION_EXPORT NSString *const WCRoundEmoticonCornerEnabledKey;
+FOUNDATION_EXPORT NSString *const WCRoundEmoticonCornerRadiusKey;
+FOUNDATION_EXPORT NSString *const WCRoundChatImageCornerEnabledKey;
+FOUNDATION_EXPORT NSString *const WCRoundChatImageCornerRadiusKey;
+FOUNDATION_EXPORT NSString *const WCRoundMomentsImageCornerEnabledKey;
+FOUNDATION_EXPORT NSString *const WCRoundMomentsImageCornerRadiusKey;
+FOUNDATION_EXPORT NSString *const WCRoundGlobalAvatarRoundingEnabledKey;
+FOUNDATION_EXPORT NSString *const WCRoundGlobalAvatarCornerPercentKey;
+FOUNDATION_EXPORT NSString *const WCRoundChatInputRoundingEnabledKey;
+FOUNDATION_EXPORT NSString *const WCRoundChatInputInnerRoundingKey;
+FOUNDATION_EXPORT NSString *const WCRoundChatInputOuterRoundingKey;
+FOUNDATION_EXPORT NSString *const WCRoundChatInputInnerRadiusKey;
+FOUNDATION_EXPORT NSString *const WCRoundChatInputOuterRadiusKey;
+FOUNDATION_EXPORT NSString *const WCRoundEnabledKey;
+void WCRoundRegisterDefaults(void);
+BOOL WCRoundEnabled(NSString *key);
+
+NSDictionary *WCRoundDefaultSettings(void);
