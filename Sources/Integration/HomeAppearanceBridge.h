@@ -5,6 +5,7 @@
 @protocol WCHomeCornersIntegration <NSObject>
 + (BOOL)enabled;
 + (BOOL)isDark:(UIView *)view;
++ (CGFloat)layoutScaleFactor;
 + (UIColor *)color:(UIView *)view surface:(BOOL)surface;
 + (CGFloat)inset;
 + (CGFloat)gap;

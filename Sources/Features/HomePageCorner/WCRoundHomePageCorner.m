@@ -17,7 +17,7 @@ static void WCHomeCornerReadSettings(void) {
     NSUserDefaults *d=NSUserDefaults.standardUserDefaults;
     WCHomeCornerEnabled=[d boolForKey:WCRoundEnabledKey] && [d boolForKey:WCRoundHomePageCornerEnabledKey];
     WCHomeCornerMergePinned=[d boolForKey:WCRoundHomePageCornerMergePinnedKey];
-    CGFloat scale=1.0;
+    CGFloat scale=WCRoundLayoutScaleFactor();
     id radiusValue=[d objectForKey:WCRoundHomePageCornerRadiusKey];
     id insetValue=[d objectForKey:WCRoundHomePageCornerInsetKey];
     id gapValue=[d objectForKey:WCRoundHomePageCornerGapKey];
@@ -77,11 +77,11 @@ CGFloat WCRoundHomePageCornerGap(void) {
     return WCHomeCornerGap;
 }
 NSInteger WCRoundHomePageCornerMergedSection(UITableView *table) {
-    if (!WCRoundHomePageCornerEnabled() || !WCRoundHomeGroupsEnabled()) return NSNotFound;
+    if (!WCRoundHomePageCornerEnabled()) return NSNotFound;
     // Native homepage sections: auxiliary banners, pinned chats, normal chats.
     id<UITableViewDataSource> source=table.dataSource;
     if (WCHomeCornerMergePinned && [source tableView:table numberOfRowsInSection:1]>0) return 1;
-    return [source tableView:table numberOfRowsInSection:0]>0?0:NSNotFound;
+    return WCRoundHomeGroupsEnabled() && [source tableView:table numberOfRowsInSection:0]>0?0:NSNotFound;
 }
 static WCRoundLocalHomeCornerState *WCHomeCornerStateForView(UIView *view) {
     WCRoundLocalHomeCornerState *state=objc_getAssociatedObject(view,&WCHomeCornerStateKey);
@@ -178,8 +178,19 @@ void WCRoundHomePageCornerLayoutCell(UITableViewCell *cell) {
     UIRectCorner corners=(path.row==0?(UIRectCornerTopLeft|UIRectCornerTopRight):0)
         | (path.row==count-1?(UIRectCornerBottomLeft|UIRectCornerBottomRight):0);
     NSInteger merged=WCRoundHomePageCornerMergedSection(WCHomeCornerTable);
-    if (merged!=NSNotFound && path.section<=merged)
+    if (merged!=NSNotFound && path.section<=merged) {
         corners=path.section==merged && path.row==count-1?(UIRectCornerBottomLeft|UIRectCornerBottomRight):0;
+        if (!WCRoundHomeGroupsEnabled() && path.row==0) {
+            BOOL firstSection=YES;
+            for (NSInteger section=0;section<path.section;section++) {
+                if ([WCHomeCornerTable.dataSource tableView:WCHomeCornerTable numberOfRowsInSection:section]>0) {
+                    firstSection=NO;
+                    break;
+                }
+            }
+            if (firstSection) corners|=UIRectCornerTopLeft|UIRectCornerTopRight;
+        }
+    }
     WCHomeCornerMask(cell,corners);
 }
 void WCRoundHomePageCornerLayoutChrome(UIView *view) {
@@ -245,7 +256,7 @@ void WCRoundHomePageCornerLayoutSearch(UIView *view) {
     WCHomeCornerColorView(box,UIColor.clearColor);
     CGRect cardRect=CGRectInset(WCHomeCornerTable.bounds,WCHomeCornerInset,0);
     CGRect tableRect=[WCHomeCornerTable convertRect:cardRect toView:view];
-    CGFloat scale=1.0;
+    CGFloat scale=WCRoundLayoutScaleFactor();
     // Scrolling changes visibility, not the search background's dimensions.
     CGFloat height=40*scale;
     surface.frame=CGRectMake(tableRect.origin.x,CGRectGetMidY(view.bounds)-height/2,tableRect.size.width,height);
@@ -281,13 +292,15 @@ void WCRoundHomePageCornerLayoutGroup(UIView *banner, CGFloat nativeHeight, CGFl
 CGFloat WCRoundHomePageCornerHeaderHeight(UITableView *table, NSInteger section, CGFloat original) {
     if (table!=WCHomeCornerTable || !WCRoundHomePageCornerEnabled()) return original;
     NSInteger merged=WCRoundHomePageCornerMergedSection(table);
-    if (merged!=NSNotFound && section<=merged) return 0;
     // Header measurement runs while UITableView builds its row data. Query the
     // data source directly instead of reentering the table's row-data queries.
     id<UITableViewDataSource> source=table.dataSource;
-    if (![source tableView:table numberOfRowsInSection:section]) return original;
+    if (![source tableView:table numberOfRowsInSection:section])
+        return merged!=NSNotFound && section<=merged?0:original;
     BOOL previousContent=NO;
     for (NSInteger previous=0;previous<section;previous++) if ([source tableView:table numberOfRowsInSection:previous]) { previousContent=YES;break; }
+    if (merged!=NSNotFound && section<=merged)
+        return WCRoundHomeGroupsEnabled() || previousContent?0:MAX(original,WCHomeCornerGap);
     if (!previousContent) return WCRoundHomeGroupsEnabled()?original:MAX(original,WCHomeCornerGap);
     return original;
 }
@@ -326,7 +339,7 @@ void WCRoundHomePageCornerAttach(UIViewController *controller) {
 }
 void WCRoundHomePageCornerSettingsChanged(NSString *key) {
     if (key && ![key hasPrefix:@"com.qiu7c.wcround.home.corner."] && ![key isEqual:WCRoundEnabledKey]
-       ) return;
+        && ![key isEqual:WCRoundPageScaleEnabledKey] && ![key isEqual:WCRoundPageScalePercentKey]) return;
     WCHomeCornerReadSettings();
     if (!WCHomeCornerController) return;
     for (UIView *view in WCHomeCornerViews.allObjects) WCHomeCornerRestore(view);

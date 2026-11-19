@@ -16,7 +16,7 @@ TWEAK_NAME = WCRound
 WCRound_FILES = Tweak.x $(shell find Sources -type f -name '*.m' -o -type f -name '*.x')
 WCRound_LOGOS_DEFAULT_GENERATOR = internal
 WCRound_OBJCFLAGS = -fobjc-arc -I$(THEOS_PROJECT_DIR) -fvisibility=hidden
-WCRound_FRAMEWORKS = UIKit Foundation QuartzCore UniformTypeIdentifiers
+WCRound_FRAMEWORKS = UIKit Foundation QuartzCore UniformTypeIdentifiers WebKit
 
 include $(THEOS_MAKE_PATH)/tweak.mk
 endif

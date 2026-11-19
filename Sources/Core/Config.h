@@ -23,3 +23,7 @@ void WCRoundRegisterDefaults(void);
 BOOL WCRoundEnabled(NSString *key);
 
 NSDictionary *WCRoundDefaultSettings(void);
+
+FOUNDATION_EXPORT NSString *const WCRoundPageScaleEnabledKey;
+FOUNDATION_EXPORT NSString *const WCRoundPageScalePercentKey;
+FOUNDATION_EXPORT NSString *const WCRoundPageScalePluginUIKey;

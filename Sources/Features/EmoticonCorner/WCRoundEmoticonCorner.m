@@ -13,7 +13,9 @@ static BOOL WCEmoticonClass(UIView *view, NSString *name) {
 }
 static BOOL WCEmoticonHost(UIView *view) {
     for (UIView *host = view.superview; host; host = host.superview)
-        if (WCEmoticonClass(host, @"EmoticonViewWithPreview") || WCEmoticonClass(host, @"EmoticonMessageCellView")) return YES;
+        if (WCEmoticonClass(host, @"EmoticonViewWithPreview")
+            || WCEmoticonClass(host, @"EmoticonMessageCellView")
+            || WCEmoticonClass(host, @"AppEmoticonMessageCellView")) return YES;
     WCRoundLocalEmoticonPreviewOwner *owner = objc_getAssociatedObject(view, &WCEmoticonPreviewOwnerKey);
     UIView *host = owner.view;
     id backdrop = WCRoundTweakSafeValue(host, @"m_emoticonPreviewBack");

@@ -16,6 +16,7 @@ NSNotificationName const WCRoundDidChangeNotification = @"com.qiu7c.wcround.chan
         %init;
         dispatch_async(dispatch_get_main_queue(), ^{ WCRoundRegisterEntry(); });
         [NSNotificationCenter.defaultCenter addObserverForName:WCRoundDidChangeNotification object:nil queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification *note) {
+            WCRoundLayoutSettingsChanged(note.object);
             WCRoundHomePageCornerSettingsChanged(note.object);
             WCRoundRefreshTrackedGlobalAvatarViews();
             WCRoundChatInputRoundingSettingsChanged(note.object);

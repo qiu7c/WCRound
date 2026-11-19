@@ -39,7 +39,9 @@ void WCRoundSettingsConfigureNavigation(UIViewController *controller) {
     }
 }
 
-CGFloat WCRoundSettingsScaleFactor(void) { return 1; }
+CGFloat WCRoundSettingsScaleFactor(void) {
+    return [NSUserDefaults.standardUserDefaults boolForKey:WCRoundPageScalePluginUIKey] ? WCRoundLayoutScaleFactor() : 1;
+}
 
 void WCRoundSettingsPostChange(NSString *key) {
     [NSNotificationCenter.defaultCenter postNotificationName:WCRoundDidChangeNotification object:key];

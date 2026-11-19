@@ -22,6 +22,7 @@ static NSDictionary *WCCornerNumber(NSString *title, NSString *key, double maxim
         @[WCCornerSwitch(@"朋友圈圆角",WCRoundMomentsImageCornerEnabledKey),WCCornerNumber(@"圆角程度",WCRoundMomentsImageCornerRadiusKey,40),@{@"title":@"朋友圈预览与调节",@"momentsPreview":@YES}],
         @[WCCornerSwitch(@"表情圆角",WCRoundEmoticonCornerEnabledKey),WCCornerNumber(@"圆角程度",WCRoundEmoticonCornerRadiusKey,40)],
         @[WCCornerSwitch(@"聊天媒体圆角",WCRoundChatImageCornerEnabledKey),WCCornerNumber(@"圆角程度",WCRoundChatImageCornerRadiusKey,40)],
+        @[@{@"title":@"小拓展",@"interfaceScale":@YES}],
         @[@{@"title":@"插件设置",@"pluginSettings":@YES}]
     ];
     self.collapsed = [NSMutableIndexSet indexSet];
@@ -34,6 +35,8 @@ static NSDictionary *WCCornerNumber(NSString *title, NSString *key, double maxim
 }
 - (void)dealloc { [NSNotificationCenter.defaultCenter removeObserver:self]; }
 - (void)changed:(NSNotification *)note {
+    WCRoundSettingsConfigureNavigation(self);
+    self.tableView.tableFooterView=WCRoundSettingsFooter(self.tableView.bounds.size.width);
     for (UITableViewCell *cell in self.tableView.visibleCells) if (((UISlider *)[cell.contentView viewWithTag:9550]).isTracking) return;
     [self.tableView reloadData];
 }
@@ -41,12 +44,27 @@ static NSDictionary *WCCornerNumber(NSString *title, NSString *key, double maxim
 - (CGFloat)tableView:(UITableView *)table heightForFooterInSection:(NSInteger)section { return 0; }
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView { return self.sections.count; }
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section { return [self.collapsed containsIndex:section] ? 1 : self.sections[section].count; }
-- (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)path { NSDictionary *row=self.sections[path.section][path.row]; return row[@"selection"] ? 88 : (row[@"maximum"] ? 84 : 50); }
+- (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)path {
+    NSDictionary *row=self.sections[path.section][path.row];
+    CGFloat scale=WCRoundSettingsScaleFactor();
+    return row[@"selection"] ? MAX(70,88*scale) : (row[@"maximum"] ? MAX(70,84*scale) : 50*scale);
+}
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)path {
     NSDictionary *row = self.sections[path.section][path.row];
     UITableViewCell *cell = WCRoundSettingsCardCell(tableView,nil,UITableViewCellStyleValue1,path);
-    cell.backgroundColor = UIColor.clearColor; cell.textLabel.font = [UIFont systemFontOfSize:16]; cell.textLabel.text = row[@"title"];
-    cell.indentationLevel = path.row ? 1 : 0; cell.indentationWidth = 18;
+    CGFloat scale=WCRoundSettingsScaleFactor();
+    cell.backgroundColor = UIColor.clearColor; cell.textLabel.font = [UIFont systemFontOfSize:16*scale]; cell.textLabel.text = row[@"title"];
+    cell.indentationLevel = path.row ? 1 : 0; cell.indentationWidth = 18*scale;
+    if (row[@"interfaceScale"] || row[@"pluginSettings"]) {
+        cell.imageView.image=[UIImage systemImageNamed:row[@"interfaceScale"]?@"slider.horizontal.3":@"gearshape"];
+        cell.imageView.tintColor=UIColor.systemBlueColor;
+        cell.accessoryType=UITableViewCellAccessoryDisclosureIndicator;
+        if (row[@"interfaceScale"]) {
+            cell.detailTextLabel.text=@"界面大小";
+            cell.detailTextLabel.font=[UIFont systemFontOfSize:13*scale];
+        }
+        return cell;
+    }
     if (!path.row) {
         cell.imageView.image = [UIImage systemImageNamed:[self.collapsed containsIndex:path.section] ? @"chevron.right" : @"chevron.down"
             withConfiguration:[UIImageSymbolConfiguration configurationWithPointSize:11 weight:UIImageSymbolWeightRegular]];
@@ -57,7 +75,7 @@ static NSDictionary *WCCornerNumber(NSString *title, NSString *key, double maxim
         toggle.accessibilityIdentifier = row[@"key"]; [toggle addTarget:self action:@selector(toggled:) forControlEvents:UIControlEventValueChanged]; cell.accessoryView = toggle;
     } else if (row[@"selection"]) {
         cell.textLabel.text=nil;
-        UILabel *label=[UILabel new]; label.text=row[@"title"]; label.font=[UIFont systemFontOfSize:15];
+        UILabel *label=[UILabel new]; label.text=row[@"title"]; label.font=[UIFont systemFontOfSize:15*scale];
         UISegmentedControl *control=[[UISegmentedControl alloc] initWithItems:@[@"内部",@"外部",@"全部",@"关闭"]];
         NSUserDefaults *defaults=NSUserDefaults.standardUserDefaults;
         BOOL inner=[defaults boolForKey:WCRoundChatInputInnerRoundingKey], outer=[defaults boolForKey:WCRoundChatInputOuterRoundingKey];
@@ -67,22 +85,22 @@ static NSDictionary *WCCornerNumber(NSString *title, NSString *key, double maxim
         [NSLayoutConstraint activateConstraints:@[
             [label.leadingAnchor constraintEqualToAnchor:cell.contentView.leadingAnchor constant:34],
             [label.trailingAnchor constraintEqualToAnchor:cell.contentView.trailingAnchor constant:-16],
-            [label.topAnchor constraintEqualToAnchor:cell.contentView.topAnchor constant:10],
+            [label.topAnchor constraintEqualToAnchor:cell.contentView.topAnchor constant:10*scale],
             [control.leadingAnchor constraintEqualToAnchor:label.leadingAnchor],
             [control.trailingAnchor constraintEqualToAnchor:label.trailingAnchor],
-            [control.topAnchor constraintEqualToAnchor:label.bottomAnchor constant:8],
+            [control.topAnchor constraintEqualToAnchor:label.bottomAnchor constant:8*scale],
             [control.heightAnchor constraintEqualToConstant:32]
         ]];
     } else if (row[@"maximum"]) {
         cell.textLabel.text = nil;
-        UILabel *label = [UILabel new]; label.tag = 9551; label.textColor = UIColor.labelColor; label.font = [UIFont systemFontOfSize:15];
+        UILabel *label = [UILabel new]; label.tag = 9551; label.textColor = UIColor.labelColor; label.font = [UIFont systemFontOfSize:15*scale];
         label.text = [NSString stringWithFormat:@"%@   %.0f",row[@"title"],[NSUserDefaults.standardUserDefaults doubleForKey:row[@"key"]]];
         UISlider *slider = [UISlider new]; slider.tag = 9550; slider.minimumValue = 0; slider.maximumValue = [row[@"maximum"] floatValue]; slider.value = [NSUserDefaults.standardUserDefaults doubleForKey:row[@"key"]]; slider.accessibilityIdentifier = row[@"key"];
         slider.accessibilityLabel = row[@"title"]; [slider addTarget:self action:@selector(slid:) forControlEvents:UIControlEventValueChanged];
         for (UIView *view in @[label,slider]) { view.translatesAutoresizingMaskIntoConstraints = NO; [cell.contentView addSubview:view]; }
         [NSLayoutConstraint activateConstraints:@[
-            [label.leadingAnchor constraintEqualToAnchor:cell.contentView.leadingAnchor constant:34], [label.trailingAnchor constraintEqualToAnchor:cell.contentView.trailingAnchor constant:-20], [label.topAnchor constraintEqualToAnchor:cell.contentView.topAnchor constant:10],
-            [slider.leadingAnchor constraintEqualToAnchor:label.leadingAnchor], [slider.trailingAnchor constraintEqualToAnchor:label.trailingAnchor], [slider.topAnchor constraintEqualToAnchor:label.bottomAnchor constant:4], [slider.bottomAnchor constraintEqualToAnchor:cell.contentView.bottomAnchor constant:-8]
+            [label.leadingAnchor constraintEqualToAnchor:cell.contentView.leadingAnchor constant:34], [label.trailingAnchor constraintEqualToAnchor:cell.contentView.trailingAnchor constant:-20], [label.topAnchor constraintEqualToAnchor:cell.contentView.topAnchor constant:10*scale],
+            [slider.leadingAnchor constraintEqualToAnchor:label.leadingAnchor], [slider.trailingAnchor constraintEqualToAnchor:label.trailingAnchor], [slider.topAnchor constraintEqualToAnchor:label.bottomAnchor constant:4*scale], [slider.bottomAnchor constraintEqualToAnchor:cell.contentView.bottomAnchor constant:-8*scale]
         ]];
     } else { cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator; }
     return cell;
@@ -104,6 +122,10 @@ static NSDictionary *WCCornerNumber(NSString *title, NSString *key, double maxim
 }
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)path {
     [tableView deselectRowAtIndexPath:path animated:YES]; NSDictionary *row = self.sections[path.section][path.row];
+    if (row[@"interfaceScale"]) {
+        [self.navigationController pushViewController:WCRoundCreateInterfaceScaleSettingsController() animated:YES];
+        return;
+    }
     if (row[@"pluginSettings"]) {
         [self.navigationController pushViewController:WCRoundCreatePluginSettingsController() animated:YES];
         return;

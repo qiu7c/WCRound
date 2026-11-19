@@ -119,3 +119,17 @@ void WCRoundRegisterEntry(void);
 
 UIViewController *WCRoundCreatePluginSettingsController(void);
 UIView *WCRoundSettingsFooter(CGFloat width);
+
+#import "Sources/API/WCRoundInterfaceScaleAPI.h"
+
+@interface MMThemeManager : NSObject
+- (id)getValueOfProperty:(id)property inRuleSet:(id)ruleSet;
+- (id)getValueOfProperty:(id)property inRuleSet:(id)ruleSet isAdapt:(BOOL)isAdapt;
+@end
+@interface WAThemeProxy : NSObject
++ (id)getValueOfProperty:(id)property inRuleSet:(id)ruleSet;
+@end
+@interface CLocalInfo : NSObject
+- (unsigned int)m_uiWebviewFontLevel;
+- (unsigned int)m_uiGlobalFontLevel;
+@end

@@ -62,12 +62,13 @@ static UIImage *WCRoundPreviewLandscape(NSUInteger index) {
 }
 - (void)layoutSubviews {
     [super layoutSubviews];
-    CGFloat width = self.bounds.size.width;
+    CGFloat width = self.bounds.size.width, scale = WCRoundLayoutScaleFactor();
     for (NSUInteger index = 0; index < self.avatars.count; index++) {
         BOOL sender = index == 1;
         UIView *avatar = self.avatars[index];
         avatar.hidden = self.kind == 2 && sender;
-        avatar.frame = CGRectMake(sender ? width - 58 : 16, sender ? 100 : 24, 42, 42);
+        CGFloat avatarSide = 42 * scale;
+        avatar.frame = CGRectMake(sender ? width - 16 - avatarSide : 16, (sender ? 100 : 24) * scale, avatarSide, avatarSide);
         [avatar layoutIfNeeded];
         if (self.kind == 0) {
             UIView *image = WCRoundTweakSafeValue(avatar, @"headImageView");
@@ -79,23 +80,27 @@ static UIImage *WCRoundPreviewLandscape(NSUInteger index) {
         }
         UILabel *message = self.messages[index];
         message.hidden = self.kind == 2 && sender;
-        CGFloat available = MAX(0, width - 92);
-        CGFloat messageWidth = MIN(sender ? 232 : 162, available);
-        message.frame = CGRectMake(sender ? width - 72 - messageWidth : 72, sender ? 102 : 26, messageWidth, 38);
+        message.font = [UIFont systemFontOfSize:16 * scale];
+        CGFloat contentX = 16 + avatarSide + 14 * scale;
+        CGFloat available = MAX(0, width - contentX - 16);
+        CGFloat messageWidth = MIN((sender ? 232 : 162) * scale, available);
+        message.frame = CGRectMake(sender ? width - contentX - messageWidth : contentX, (sender ? 102 : 26) * scale, messageWidth, 38 * scale);
         if (self.kind == 2) message.text = @"今天的风景";
     }
-    CGFloat side = MAX(0, MIN(88, (width - 104) / 3));
+    CGFloat photoX = 16 + 56 * scale;
+    CGFloat side = MAX(0, MIN(88 * scale, (width - photoX - 24) / 3));
     for (NSUInteger index = 0; index < self.photos.count; index++) {
         UIImageView *photo = self.photos[index];
         photo.hidden = self.kind != 2;
-        photo.frame = CGRectMake(72 + (index % 3) * (side + 4), 82 + (index / 3) * (side + 4), side, side);
+        photo.frame = CGRectMake(photoX + (index % 3) * (side + 4), 82 * scale + (index / 3) * (side + 4), side, side);
         photo.layer.cornerRadius = WCRoundMomentsImageCornerResolvedRadius(photo.bounds.size,
             [NSUserDefaults.standardUserDefaults doubleForKey:WCRoundMomentsImageCornerRadiusKey]);
         photo.layer.cornerCurve = kCACornerCurveContinuous;
     }
     self.outerInput.hidden = self.kind != 1;
-    self.outerInput.frame = CGRectMake(16, self.bounds.size.height - 88, MAX(0, width - 32), 64);
-    self.innerInput.frame = CGRectMake(12, 10, MAX(0, self.outerInput.bounds.size.width - 24), 44);
+    self.innerInput.font = [UIFont systemFontOfSize:16 * scale];
+    self.outerInput.frame = CGRectMake(16, self.bounds.size.height - 88 * scale, MAX(0, width - 32), 64 * scale);
+    self.innerInput.frame = CGRectMake(12 * scale, 10 * scale, MAX(0, self.outerInput.bounds.size.width - 24 * scale), 44 * scale);
     WCRoundChatInputRoundingApplyToViews(self.innerInput, self.outerInput, YES);
 }
 @end
@@ -113,7 +118,7 @@ static UIImage *WCRoundPreviewLandscape(NSUInteger index) {
     WCRoundSettingsConfigureNavigation(self);
     self.tableView.backgroundColor = UIColor.systemGroupedBackgroundColor;
     self.tableView.separatorStyle = UITableViewCellSeparatorStyleNone;
-    self.tableView.rowHeight = 90;
+    self.tableView.rowHeight = MAX(70, 90 * WCRoundSettingsScaleFactor());
     self.rows = @[
         @[@{@"title":@"头像圆角程度 (%)", @"key":WCRoundGlobalAvatarCornerPercentKey, @"max":@100}],
         @[@{@"title":@"输入框圆角", @"key":WCRoundChatInputInnerRadiusKey, @"max":@40},
@@ -126,7 +131,13 @@ static UIImage *WCRoundPreviewLandscape(NSUInteger index) {
     [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(changed:) name:WCRoundDidChangeNotification object:nil];
 }
 - (void)dealloc { [NSNotificationCenter.defaultCenter removeObserver:self]; }
-- (void)changed:(NSNotification *)notification { [self.preview setNeedsLayout]; }
+- (void)changed:(NSNotification *)notification {
+    WCRoundSettingsConfigureNavigation(self);
+    [self.preview setNeedsLayout];
+    for (UITableViewCell *cell in self.tableView.visibleCells) if (((UISlider *)[cell.contentView viewWithTag:9550]).isTracking) return;
+    self.tableView.rowHeight = MAX(70, 90 * WCRoundSettingsScaleFactor());
+    [self.tableView reloadData];
+}
 - (void)viewDidLayoutSubviews {
     [super viewDidLayoutSubviews];
     CGFloat height = self.kind == 2 ? MIN(332, self.view.bounds.size.width * .8) : 284;
@@ -140,21 +151,21 @@ static UIImage *WCRoundPreviewLandscape(NSUInteger index) {
     NSDictionary *row = self.rows[path.row];
     UITableViewCell *cell = WCRoundSettingsCardCell(table, nil, UITableViewCellStyleDefault, path);
     cell.selectionStyle = UITableViewCellSelectionStyleNone;
-    UILabel *label = [UILabel new]; label.tag = 77; label.font = [UIFont systemFontOfSize:15];
+    UILabel *label = [UILabel new]; label.tag = 77; label.font = [UIFont systemFontOfSize:15 * WCRoundSettingsScaleFactor()];
     double value = [NSUserDefaults.standardUserDefaults doubleForKey:row[@"key"]];
     label.text = [NSString stringWithFormat:@"%@   %.0f", row[@"title"], value];
-    UISlider *slider = [UISlider new]; slider.minimumValue = 0; slider.maximumValue = [row[@"max"] floatValue];
+    UISlider *slider = [UISlider new]; slider.tag = 9550; slider.minimumValue = 0; slider.maximumValue = [row[@"max"] floatValue];
     slider.value = value; slider.accessibilityIdentifier = row[@"key"]; slider.accessibilityLabel = row[@"title"];
     [slider addTarget:self action:@selector(slid:) forControlEvents:UIControlEventValueChanged];
     for (UIView *view in @[label, slider]) { view.translatesAutoresizingMaskIntoConstraints = NO; [cell.contentView addSubview:view]; }
     [NSLayoutConstraint activateConstraints:@[
         [label.leadingAnchor constraintEqualToAnchor:cell.contentView.leadingAnchor constant:16],
         [label.trailingAnchor constraintEqualToAnchor:cell.contentView.trailingAnchor constant:-16],
-        [label.topAnchor constraintEqualToAnchor:cell.contentView.topAnchor constant:12],
+        [label.topAnchor constraintEqualToAnchor:cell.contentView.topAnchor constant:12 * WCRoundSettingsScaleFactor()],
         [slider.leadingAnchor constraintEqualToAnchor:label.leadingAnchor],
         [slider.trailingAnchor constraintEqualToAnchor:label.trailingAnchor],
-        [slider.topAnchor constraintEqualToAnchor:label.bottomAnchor constant:4],
-        [slider.bottomAnchor constraintEqualToAnchor:cell.contentView.bottomAnchor constant:-10]
+        [slider.topAnchor constraintEqualToAnchor:label.bottomAnchor constant:4 * WCRoundSettingsScaleFactor()],
+        [slider.bottomAnchor constraintEqualToAnchor:cell.contentView.bottomAnchor constant:-10 * WCRoundSettingsScaleFactor()]
     ]];
     return cell;
 }

@@ -5,6 +5,7 @@
 @end
 @implementation WCRoundHomeIntegration
 + (BOOL)enabled { return WCRoundHomePageCornerEnabled(); }
++ (CGFloat)layoutScaleFactor { return WCRoundLayoutScaleFactor(); }
 + (BOOL)isDark:(UIView *)view { return WCRoundHomePageIsDark(view); }
 + (UIColor *)color:(UIView *)view surface:(BOOL)surface { return WCRoundHomePageCornerColor(view, surface); }
 + (CGFloat)inset { return WCRoundHomePageCornerInset(); }

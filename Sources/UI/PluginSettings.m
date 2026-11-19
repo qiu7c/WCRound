@@ -16,7 +16,8 @@ static BOOL WCRoundImportConfiguration(NSData *data) {
         WCRoundMomentsImageCornerRadiusKey: @[@0, @40],
         WCRoundGlobalAvatarCornerPercentKey: @[@0, @100],
         WCRoundChatInputInnerRadiusKey: @[@0, @40],
-        WCRoundChatInputOuterRadiusKey: @[@0, @40]
+        WCRoundChatInputOuterRadiusKey: @[@0, @40],
+        WCRoundPageScalePercentKey: @[@70, @100]
     };
     for (NSString *key in settings) {
         id value = settings[key], expected = defaults[key];
@@ -58,11 +59,19 @@ static BOOL WCRoundImportConfiguration(NSData *data) {
     WCRoundSettingsConfigureNavigation(self);
     self.tableView.backgroundColor = UIColor.systemGroupedBackgroundColor;
     self.tableView.separatorStyle = UITableViewCellSeparatorStyleNone;
-    self.tableView.rowHeight = 52;
+    self.tableView.rowHeight = 52 * WCRoundSettingsScaleFactor();
     self.tableView.sectionHeaderHeight = 0;
     self.tableView.sectionFooterHeight = 0;
     self.tableView.tableHeaderView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 0, 12)];
     self.tableView.tableFooterView = WCRoundSettingsFooter(self.tableView.bounds.size.width);
+    [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(settingsChanged:) name:WCRoundDidChangeNotification object:nil];
+}
+- (void)dealloc { [NSNotificationCenter.defaultCenter removeObserver:self]; }
+- (void)settingsChanged:(NSNotification *)notification {
+    WCRoundSettingsConfigureNavigation(self);
+    self.tableView.rowHeight = 52 * WCRoundSettingsScaleFactor();
+    self.tableView.tableFooterView = WCRoundSettingsFooter(self.tableView.bounds.size.width);
+    [self.tableView reloadData];
 }
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)table { return 2; }
 - (NSInteger)tableView:(UITableView *)table numberOfRowsInSection:(NSInteger)section { return section == 0 ? 2 : 3; }
@@ -70,8 +79,8 @@ static BOOL WCRoundImportConfiguration(NSData *data) {
 - (CGFloat)tableView:(UITableView *)table heightForFooterInSection:(NSInteger)section { return 0; }
 - (UITableViewCell *)tableView:(UITableView *)table cellForRowAtIndexPath:(NSIndexPath *)path {
     UITableViewCell *cell = WCRoundSettingsCardCell(table, nil, UITableViewCellStyleValue1, path);
-    cell.textLabel.font = [UIFont systemFontOfSize:16];
-    cell.detailTextLabel.font = [UIFont systemFontOfSize:13];
+    cell.textLabel.font = [UIFont systemFontOfSize:16 * WCRoundSettingsScaleFactor()];
+    cell.detailTextLabel.font = [UIFont systemFontOfSize:13 * WCRoundSettingsScaleFactor()];
     if (path.section == 0) {
         cell.textLabel.text = @[@"导出配置", @"导入配置"][path.row];
         cell.imageView.image = [UIImage systemImageNamed:@[@"square.and.arrow.up", @"square.and.arrow.down"][path.row]];
@@ -79,7 +88,7 @@ static BOOL WCRoundImportConfiguration(NSData *data) {
         cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
     } else {
         cell.textLabel.text = @[@"版本", @"联系作者", @"项目地址"][path.row];
-        cell.detailTextLabel.text = @[@"1.0.0", @"cc", @"GitHub"][path.row];
+        cell.detailTextLabel.text = @[@"1.0.0+1", @"cc", @"GitHub"][path.row];
         cell.accessoryType = path.row ? UITableViewCellAccessoryDisclosureIndicator : UITableViewCellAccessoryNone;
         if (!path.row) cell.selectionStyle = UITableViewCellSelectionStyleNone;
     }
@@ -100,7 +109,7 @@ static BOOL WCRoundImportConfiguration(NSData *data) {
     }
     NSMutableDictionary *settings = [NSMutableDictionary dictionary];
     for (NSString *key in WCRoundDefaultSettings()) settings[key] = [NSUserDefaults.standardUserDefaults objectForKey:key];
-    NSDictionary *document = @{@"plugin":@"WCRound", @"format":@1, @"version":@"1.0.0", @"settings":settings};
+    NSDictionary *document = @{@"plugin":@"WCRound", @"format":@1, @"version":@"1.0.0+1", @"settings":settings};
     NSData *data = [NSJSONSerialization dataWithJSONObject:document options:NSJSONWritingPrettyPrinted | NSJSONWritingSortedKeys error:nil];
     NSURL *url = [NSURL fileURLWithPath:[NSTemporaryDirectory() stringByAppendingPathComponent:@"WCRound-config.json"]];
     if (!data || ![data writeToURL:url options:NSDataWritingAtomic error:nil]) {
@@ -128,11 +137,11 @@ UIViewController *WCRoundCreatePluginSettingsController(void) {
 }
 
 UIView *WCRoundSettingsFooter(CGFloat width) {
-    UILabel *footer = [[UILabel alloc] initWithFrame:CGRectMake(0, 0, width, 56)];
-    footer.text = @"WCRound by cc\n1.0.0";
+    UILabel *footer = [[UILabel alloc] initWithFrame:CGRectMake(0, 0, width, 56 * WCRoundSettingsScaleFactor())];
+    footer.text = @"WCRound by cc\n1.0.0+1";
     footer.numberOfLines = 2;
     footer.textAlignment = NSTextAlignmentCenter;
-    footer.font = [UIFont systemFontOfSize:12];
+    footer.font = [UIFont systemFontOfSize:12 * WCRoundSettingsScaleFactor()];
     footer.textColor = UIColor.secondaryLabelColor;
     footer.autoresizingMask = UIViewAutoresizingFlexibleWidth;
     return footer;

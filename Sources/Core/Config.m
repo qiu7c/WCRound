@@ -20,6 +20,10 @@ NSString *const WCRoundChatInputInnerRadiusKey = @"com.qiu7c.wcround.interface.c
 NSString *const WCRoundChatInputOuterRadiusKey = @"com.qiu7c.wcround.interface.chat-input-rounding.outer-radius";
 NSString *const WCRoundEnabledKey = @"com.qiu7c.wcround.enabled";
 
+NSString *const WCRoundPageScaleEnabledKey = @"com.qiu7c.wcround.interface.page-scale.enabled";
+NSString *const WCRoundPageScalePercentKey = @"com.qiu7c.wcround.interface.page-scale.percent";
+NSString *const WCRoundPageScalePluginUIKey = @"com.qiu7c.wcround.interface.page-scale.plugin-ui";
+
 NSDictionary *WCRoundDefaultSettings(void) {
     return @{
         WCRoundHomePageCornerEnabledKey: @NO,
@@ -41,6 +45,9 @@ NSDictionary *WCRoundDefaultSettings(void) {
         WCRoundChatInputInnerRadiusKey: @18.0,
         WCRoundChatInputOuterRadiusKey: @22.0,
         WCRoundEnabledKey: @YES,
+        WCRoundPageScaleEnabledKey: @NO,
+        WCRoundPageScalePercentKey: @90.0,
+        WCRoundPageScalePluginUIKey: @NO,
     };
 }
 
